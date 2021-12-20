@@ -30,18 +30,14 @@ def _parsedict(x, dicttype):
     it unorderers Ordereddicttypes and converts them to regular dicttypeionaries
     """
     if isinstance(x, list):
-        gen_list = [dicttype(_parsedict(y, dicttype)) if isinstance(
+        return [dicttype(_parsedict(y, dicttype)) if isinstance(
             _parsedict(y, dicttype), dicttype) else _parsedict(y, dicttype) for y in x]
-        return gen_list
     if isinstance(x, str):
         return pyns_decode_entities(x)
     if isinstance(x, dict):
         newdicttype = dicttype()
         for key in x.keys():
-            if key[0] in ["@", "#"]:
-                thiskey = key[1:].lower()
-            else:
-                thiskey = key.lower()
+            thiskey = key[1:].lower() if key[0] in ["@", "#"] else key.lower()
             this_lower = _parsedict(x[key], dicttype)
             newdicttype[thiskey] = dicttype(this_lower) if isinstance(
                 this_lower, dicttype) else this_lower

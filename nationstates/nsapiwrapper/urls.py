@@ -6,7 +6,7 @@ POST_API_URL = "https://www.nationstates.net/cgi-bin/api.cgi"
 
 
 def shard_object_extract(shards):
-    store = dict()
+    store = {}
     for shard in shards:
         if isinstance(shard, Shard):
             store.update(shard.tail_gen())
@@ -26,7 +26,7 @@ def shard_generator(shards):
             raise ValueError("Shard can not be type: {}".format(type(shard)))
 
 def shard_object_extract(shards):
-    store = dict()
+    store = {}
     for shard in shards:
         if isinstance(shard, Shard):
             store.update(shard.tail_gen())
@@ -60,35 +60,34 @@ class Shard(object):
         self._tags = OrderedDict(kwargs)
 
     def __repr__(self):
-        if self._tags:
-            gen_repr = (
-                "{pn}={pv}".format(
-                    pn=k, pv=v) for k,v in self._tags.items())
-            repl_text = ",".join(gen_repr)
-            return ("<shard:({ShardName},{tags})>").format(
-                ShardName=self.shardname,
-                tags=repl_text)
-        else:
+        if not self._tags:
             return ("<shard:{ShardName}>".format(
                 ShardName=self.shardname))
+        gen_repr = (
+            "{pn}={pv}".format(
+                pn=k, pv=v) for k,v in self._tags.items())
+        repl_text = ",".join(gen_repr)
+        return ("<shard:({ShardName},{tags})>").format(
+            ShardName=self.shardname,
+            tags=repl_text)
 
     def __str__(self):
         return self.shardname
 
     def __eq__(self, n):
         """Used for sets/dicts"""
-        tagsnames = tuple(sorted((k for k in self._tags.keys())))
-        tagsnvalues = tuple(sorted((v for v in self._tags.values())))
-        ntagsnames = tuple(sorted((k for k in n._tags.keys())))
-        ntagsnvalues = tuple(sorted((v for v in n._tags.values())))
+        tagsnames = tuple(sorted(iter(self._tags.keys())))
+        tagsnvalues = tuple(sorted(iter(self._tags.values())))
+        ntagsnames = tuple(sorted(iter(n._tags.keys())))
+        ntagsnvalues = tuple(sorted(iter(n._tags.values())))
 
         return ((self.shardname == n.shardname)
                 and (set(tagsnames) == set(ntagsnames))
                 and set(tagsnvalues) == set(ntagsnvalues))
 
     def __hash__(self):
-        tagsnames = tuple(sorted((k for k in self._tags.keys())))
-        tagsnvalues = tuple(sorted((v for v in self._tags.values())))
+        tagsnames = tuple(sorted(iter(self._tags.keys())))
+        tagsnvalues = tuple(sorted(iter(self._tags.values())))
 
         return hash(
             hash(self.shardname) ^
@@ -111,7 +110,7 @@ class Shard(object):
         return self.shardname
 
 def gen_url(api, shards, version, API_URL=API_URL):
-    if not api[0] in {"world", 'cards', 'card'}:
+    if api[0] not in {"world", 'cards', 'card'}:
         url = Url(API_URL).query(**({api[0]: api[1]}))
     else:
         url = Url(API_URL)

@@ -27,10 +27,7 @@ class Api:
         self.max_safe_requests = max_safe_requests
         self.ratelimit_enabled = ratelimit_enabled
         self.use_session = use_session
-        if use_session:
-            self.session = Session()
-        else:
-            self.session = None
+        self.session = Session() if use_session else None
         self.max_ongoing_requests = max_ongoing_requests
         self.rlobj = RateLimit()
         self.__activerequests__ = 0
@@ -68,22 +65,21 @@ class Api:
         rlflag = self._check_ratelimit()
         if not self.ratelimit_enabled:
             return True
-        if not rlflag:
-            if self.ratelimitsleep:
-                n = 0
-                while not self._check_ratelimit():
-                    n = n + 1
-                    if n >= self.ratelimitsleep_maxsleeps:
-                        if self.max_safe_requests > self.ratelimit_max:
-                            break
-                        else:
-                            return True
-                    sleep_thread(self.ratelimitsleep_time)
-                else:
-                    return True
-            raise RateLimitReached("The Rate Limit was too close the API limit to safely handle this request")
-        else:
+        if rlflag:
             return True
+        if self.ratelimitsleep:
+            n = 0
+            while not self._check_ratelimit():
+                n += 1
+                if n >= self.ratelimitsleep_maxsleeps:
+                    if self.max_safe_requests > self.ratelimit_max:
+                        break
+                    else:
+                        return True
+                sleep_thread(self.ratelimitsleep_time)
+            else:
+                return True
+        raise RateLimitReached("The Rate Limit was too close the API limit to safely handle this request")
 
     def Nation(self, name):
         return NationAPI(name, self)

@@ -133,7 +133,6 @@ class SeperateCallTest(unittest.TestCase):
             # mycall.get_shards(choice(mycall.auto_shards), full_response=True)
         except Exception as Err:
             raise Err
-            self.fail(Err)
 
     def test_cards_decks_call(self):
         try:
@@ -409,9 +408,7 @@ class ApiJoinTest(unittest.TestCase):
 
     def test_pick_issue_always_fail(self):
         resp = issue_nation_zero.get_shards('issues')
-        if resp.issues is None:     
-            pass
-        else:
+        if resp.issues is not None:
             self.fail('Nation should have no issues')
 
     def test_pick_issue(self):
@@ -446,7 +443,7 @@ class ApiJoinTest(unittest.TestCase):
 
         def Main():
             threads = [] # Threads list needed when we use a bulk of threads
-            for i in range(5):
+            for _ in range(5):
                 mythread = threading.Thread(target=HelloWorld)
                 threads.append(mythread)
                 mythread.start()
