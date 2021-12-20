@@ -82,16 +82,10 @@ class NSDict(dict):
 
 def response_parser(response, full_response, use_nsdict=True, escape=False):
     raw_xml = response["xml"]
-    if escape:
-        xml = html.unescape(pyns_encode_entities(raw_xml))
-    else:
-        xml = raw_xml
+    xml = html.unescape(pyns_encode_entities(raw_xml)) if escape else raw_xml
     if full_response:
         try:
-            if use_nsdict:
-                response["data"] = parsetree(xml, NSDict)
-            else:
-                response["data"] = parsetree(xml)
+            response["data"] = parsetree(xml, NSDict) if use_nsdict else parsetree(xml)
             response["data_xmltodict"] = parse(xml)
             response["data_parse_success"] = True
         except ExpatError:
@@ -156,11 +150,10 @@ class API_WRAPPER:
                 type(self), attr))
 
     def _auto_shard(self, attr):
-        if attr in self.auto_shards:
-            resp = self.get_shards(attr)
-            return resp[attr]
-        else:
+        if attr not in self.auto_shards:
             raise ValueError("{} is not a supported auto shard".format(attr))
+        resp = self.get_shards(attr)
+        return resp[attr]
 
     def _set_apiwrapper(self, current_api):
         self.current_api = current_api
@@ -170,11 +163,10 @@ class API_WRAPPER:
                 use_nsdict=self.api_mother.use_nsdict)
         if full_response:
             return resp
-        else:
-            try:
-                return resp[self.api_name]
-            except TypeError:
-                return resp
+        try:
+            return resp[self.api_name]
+        except TypeError:
+            return resp
 
     def _request(self, shards):
         return self.current_api.request(shards=shards)
@@ -196,11 +188,7 @@ class API_WRAPPER:
            This method is wrapped by similar functions, not mean't for end user use
         """
         try:
-            if use_post:
-                resp = self._request_post(shards)
-            else:
-                resp = self._request(shards)
-
+            resp = self._request_post(shards) if use_post else self._request(shards)
             if return_status_tuple:
                 return (self._parser(resp, full_response), True)
             else:
@@ -225,12 +213,13 @@ class API_WRAPPER:
 
     def __get_shards__(self, *args, full_response=False, use_post=False):
         """Get Shards, internal implementation"""
-        if use_post:
-            resp = self.request(shards=args, full_response=full_response, use_post=True)
-            return resp         
-        else:
-            resp = self.request(shards=args, full_response=full_response, use_post=False)
-            return resp
+        return (
+            self.request(shards=args, full_response=full_response, use_post=True)
+            if use_post
+            else self.request(
+                shards=args, full_response=full_response, use_post=False
+            )
+        )
 
     def _check_beta(self):
         if not self.api_mother.enable_beta:
@@ -379,9 +368,7 @@ class Nation(API_WRAPPER):
         except ValueError:
             cant_be_none(client_key=client_key, tgid=tgid, key=key)
 
-        if telegram:
-            pass
-        else:
+        if not telegram:
             telegram = self.api_mother.telegram(client_key, tgid, key)
         telegram.send_telegram(self.nation_name)
 
@@ -399,14 +386,13 @@ class Nation(API_WRAPPER):
         cant_be_none(checksum=checksum, token=token)
         payload = {"checksum":checksum, "a":"verify"}
         if token:
-            payload.update({"token":token})
+            payload["token"] = token
         return self.get_shards(Shard(**payload), full_response=True)
 
     @property
     def region(self):
         """Returns the region, result is :class:`Region`"""
-        resp = self.api_mother.region(self._auto_shard("region"))
-        return resp
+        return self.api_mother.region(self._auto_shard("region"))
 
 class Region(API_WRAPPER):
     api_name = RegionAPI.api_name
@@ -502,10 +488,7 @@ class Telegram(API_WRAPPER):
         return self.api.Telegram(self.__clientkey__, self.__tgid__, self.__key__)
 
     def send_telegram(self, nation, full_response=False):
-        if isinstance(nation, Nation):
-            nation_str = nation.nation_name
-        else:
-            nation_str = nation
+        nation_str = nation.nation_name if isinstance(nation, Nation) else nation
         return self.request(Shard(to=nation_str), full_response)
 
 
@@ -527,7 +510,7 @@ class Cards(API_WRAPPER):
         inv_cards = self.api_mother.individual_cards(cardid=cardid, season=season)
         if shards is None:
             shards = tuple()
-        if isinstance(shards, Shard) or isinstance(shards, str):
+        if isinstance(shards, (Shard, str)):
             shards = (shards,)
         return inv_cards.get_shards(*shards, full_response=full_response)
 

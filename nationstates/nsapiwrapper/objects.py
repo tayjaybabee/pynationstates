@@ -97,15 +97,9 @@ class RateLimit:
                     post_raf = xrls - (xrls - len(self.rltime))
                     diff = pre_raf - post_raf
                     nxrls = xrls - diff
-                    if nxrls >= amount_allow:
-                        return False
-                    else:
-                        return True
+                    return nxrls < amount_allow
                 except IndexError as err:
-                    if (xrls - pre_raf) >= amount_allow:
-                        return False
-                    else:
-                        return True
+                    return xrls - pre_raf < amount_allow
             else:
                 self.cleanup()
                 return True
@@ -197,7 +191,7 @@ class NationstatesAPI:
 
     def _prepare_request(self, url, api_name, api_value, shards, version=None, request_headers=None, use_post=False, post_data=None):
         if request_headers is None:
-            request_headers = dict()
+            request_headers = {}
         return APIRequest(url, api_name, api_value, shards, version, request_headers, use_post, post_data)
 
     def _request_api(self, req):
@@ -249,8 +243,7 @@ class NationstatesAPI:
                     value_name,
                     shards, version, request_headers, False, None)
             resp = self._request_api(req)
-            result = self._handle_request(resp, req)
-            return result
+            return self._handle_request(resp, req)
 
     def _request_post(self, shards, url, api_name, value_name, version, post_data, request_headers=None):
         # This relies on .url() being defined by child classes
@@ -261,8 +254,7 @@ class NationstatesAPI:
                     value_name,
                     shards, version, request_headers, True, post_data)
             resp = self._request_api(req)
-            result = self._handle_request(resp, req)
-            return result
+            return self._handle_request(resp, req)
 
     def _default_shards(self):
         return None
@@ -304,45 +296,38 @@ class PrivateNationAPI(NationAPI):
     def __init__(self, nation_name, api_mother, password=None, autologin=None):
         self.password = password
         self.autologin = autologin
-        if autologin:
-            self.autologin_used = True
-        else:
-            self.autologin_used = False
+        self.autologin_used = bool(autologin)
         self.pin = None
         super().__init__(nation_name, api_mother)
 
     def request(self, shards=[]):
 
         pin_used = bool(self.pin)
-        custom_headers = self._get_pin_headers() 
+        custom_headers = self._get_pin_headers()
         url = self.url(shards)
         try:
             response = self._request(shards, url, self.api_name, self.nation_name, self.api_mother.version, request_headers=custom_headers)
         except Forbidden as exc:
-            # PIN is wrong or login is wrong
-            if pin_used:
-                self.pin = None
-                return self.request(shards=shards)
-            else:
+            if not pin_used:
                 raise exc
-            
+
+            self.pin = None
+            return self.request(shards=shards)
         self._setup_pin(response)
         return response
 
     def post(self, shards=[]):
         pin_used = bool(self.pin)
-        custom_headers = self._get_pin_headers() 
+        custom_headers = self._get_pin_headers()
         url = self.post_url()
         post_data = shard_object_extract(shards)
         try:
             response = self._request_post(shards, url, self.api_name, self.nation_name, self.api_mother.version, post_data, request_headers=custom_headers)
         except Forbidden as exc:
-            # PIN is wrong or login is wrong
-            if pin_used:
-                self.pin = None
-                return self.post(shards=shards)
-            else:
-                raise exc            
+            if not pin_used:
+                raise exc
+            self.pin = None
+            return self.post(shards=shards)
         self._setup_pin(response)
         return response
 
@@ -351,11 +336,10 @@ class PrivateNationAPI(NationAPI):
         with PrivateNationStatusLock:
             if self.pin:
                 custom_headers={"Pin": self.pin}
-            else:
-                if self.autologin:
-                    custom_headers={"Autologin":self.autologin}
-                elif self.password:
-                    custom_headers = {"Password": self.password}
+            elif self.autologin:
+                custom_headers={"Autologin":self.autologin}
+            elif self.password:
+                custom_headers = {"Password": self.password}
             return custom_headers
 
     def _setup_pin(self, response):
@@ -451,15 +435,8 @@ class CardsAPI(NationstatesAPI):
 
     def __init__(self, api_mother, multi=True, **kwargs):
         super().__init__(api_mother)
-        if kwargs:
-            self.__defaultshards__ = Shard(**kwargs)
-        else:
-            self.__defaultshards__ = None
-        if multi:
-            self.api_name = CardsAPI.api_name_multi
-        else:
-            self.api_name = CardsAPI.api_name_single
-
+        self.__defaultshards__ = Shard(**kwargs) if kwargs else None
+        self.api_name = CardsAPI.api_name_multi if multi else CardsAPI.api_name_single
         self.__ismulti__ = multi
 
     def _default_shards(self):
